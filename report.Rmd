@@ -1,0 +1,267 @@
+---
+title: "Prediction and Inference of Concrete Compressive Strength(CCS) using Regression Analysis"
+output: html_notebook
+---
+
+Concrete is a composite material composed of fine and coarse aggregate, bonded together with a fluid cement and hardens over the time. It is the most commonly used man-made material for construction and used extensively in buildings, bridges, roads and dams.
+Concrete strength is affected by many factors such as quality of raw materials, water : ce- ment ratio, coarse : fine aggregate ratio, age of concrete, compaction of concrete, temperature, relative humidity and curing of concrete. Concrete mixtures can be designed to provide a wide range of mechanical and durability properties to meet the design requirements of a structure. The compressive strength of concrete is the most common attribute used by the engineer when designing structures. It is calculated by the failure load divided by the cross sectional area resisting the load and reported in units of pound-force per square inch (psi) or megapascals (MPa). CCS can vary from 2500 psi (17 MPa) for residential concrete to 4000 psi (28 MPa) and higher in commercial structures.
+
+The objective of this study is to make prediction and inference on concrete compressive strength using 8 predictor variables, which are factors that affect the variation of compressive strength of concrete.
+
+### Following are the questions answered in this project.
+1. Is there a relationship between dependent variable and predictor variables?
+2. Does transformation of dependent variables improve the accuracy of regression model?
+3. Does transformation of predictor variable improve the accuracy of regression model?
+
+### The outline of the project is as follows:
+1. Use of regression analysis to create a prediction and inference model on Concrete Compressive Strength
+2. Use transformation methods such as box-cox and log transformation for dependent and predictor variables
+3. Use weighted least square method for model improvement
+4. Use variable selection methods such as forward and backward selection
+5. Use k-fold cross validation for model validation
+
+#### Dataset
+
+This dataset consists of 1030 observations with 8 quantitative predictor variables and one quantitative response variable. In this dataset, the actual concrete compressive strength for a given mixture under a specific age was determined and recorded. This data set was obtained from UCI machine learning repository. The aim of the project would be “to predict and make inference on concrete compressive strength using the 8 predictor variables. All the variables are described below.
+
+Predictor Variables: (Amount of kg in a m^3 mixture)
+
+1. Cement (cmt) 
+2. Blast Furnace Slag (bfs) 
+3. Fly Ash (flya) 
+4. Water (wtr) 
+5. Superplasticizer (spl)
+6. Coarse Aggregate (ca)
+7. Fine Aggregate (fa)
+8. Age - Age of the mixture (number of days)
+
+Dependent Variable: Concrete Compressive Strength(CCS) - measured in MPa (megapascal)
+
+Import necessary libraries
+
+```{r}
+library(alr4)
+library(olsrr)
+library(MASS)
+library(caret)
+
+attach(dataset)
+```
+
+##### Descriptive Statistics and Scatterplot matrix
+
+```{r}
+summary(dataset)
+```
+
+```{r}
+plot(dataset,col=4)
+```
+
+#### Problem 1: Is there a relationship between dependent variable and predictor variables?
+
+By looking at the first row of the scatterplot matrix of the dataset, the relationship between ccs and 8 predictor variables can be observed. It seems, there is a linear positive relationship in between ccs and cmt. A specific relationship cannot be observed by looking at the bfs, flya, ca, and fa scatterplots with ccs, but it seems wtr has a negative relationship and spl has a positive relationship with ccs according to their scatterplots. Age is a discrete variable ranges from 1 to 365, and as a result of that, the scatterplot between ccs and age seems to be clustered accoding to specific age values. 
+
+##### Initial Model fitting
+
+```{r}
+testmod <- lm(ccs~cmt+bfs+flya+wtr+spl+ca+fa+age,data = dataset)
+summary(testmod)
+plot(testmod)
+```
+
+As the first step of model diagnostics, initial model was checked for assumption violations and the following results were obtained.
+
+Linearity assumption may not be violated as the Residual vs fitted plot shows somewhat linearity throughout the plot. As observed from normal QQ plot, normality assumption was satisfied except for the deviation in the lower tail of the data. Scale-location plot seems to have a trend, which indicates a non-constant error variance, and that can be identified as a violation of assumptions and should be addressed. As seen from the Residuals vs Leverage plot, no outliers were presented in the data.
+
+The adjusted R^2 value of the model is 0.6125 which is considerably lower with a residual standard error of 10.4 which is considerably higher. 
+
+#### Problem 2: Does transformation of dependent variables improve the accuracy of regression model?
+
+As observed from the above model diagnostic plots, violations of constant variance assumption can be identified as a fact that needs to be addressed. Even though the linearity assumption was mentioned as satisfied, the diagnostic plots can be observed for an improvement of the linearity assumption after the transformations are applied.
+
+
+
+```{r}
+# Box cox transformation
+k = boxCox(testmod)
+nccs = ccs^0.75
+```
+
+Box-Cox transformation was carried out as the first step of transformation for response variable, and lambda value of 0.75 was identified as the optimal value.
+
+```{r}
+testmod2 <- lm(nccs~cmt+bfs+flya+wtr+spl+ca+fa+age,data = dataset)
+summary(testmod2)
+plot(testmod2)
+```
+
+After the box-cox transformation, the residual standard error has dropped down from 10.4 to 3.22. Therefore the model has been improved in terms of residual error. All the variables are significant except for ca and  fa.
+
+#### Problem 3: Does transformation of predictor variable improve the accuracy of regression model?
+
+After the box-cox transformation was applied to the response variable ccs, the log transforma- tion was applied to cmt, wtr, ca, fa and age predictor variables, and the diagnostic plots were observed for the development of the constant variance and linearity assumptions. 
+
+```{r}
+# box-cox transformation for ccs and log transformation for predictor variables cmt,wtr,ca,fa,age
+testmod4 = lm(nccs~log(cmt)+bfs+flya+log(wtr)+spl+log(ca)+log(fa)+log(age),data = data2)
+summary(testmod4)
+plot(testmod4)
+```
+
+After the box-cox transformation and log transformation, residual standard error further dropped down to 2.151 and adjusted R^2 significantly increased to 0.8266 which is a great improvement to the model. 
+
+Then the model assumpsions were checked again for imporvements.
+Even though the linearity assumption was improved in Residual Vs fitted plot, the violation of the assumption of constant variance seems to be present in scale-location plot.
+
+In order to address the non constant variance problem, weighted least square method was implemented which is a variance stabilization transformation that used commonly, in order to address the non constant variance problem. Then the diagnostic plot of weighted residuals and fitted values was obtained.
+
+```{r}
+#WLS method
+res4 = testmod4$residuals
+z=log(res4^2)
+
+z.lo=loess(z~nccs,degree = 2,span=.75)
+loz=predict(z.lo)
+yord=order(nccs)
+
+plot(nccs,z)
+lines(nccs[yord],loz[yord],col=2)
+```
+
+```{r}
+sig2hat=exp(loz)
+sighat=sqrt(sig2hat)
+
+testmod5 = lm(nccs~log(cmt)+bfs+flya+log(wtr)+spl+log(ca)+log(fa)+log(age),data = data2,weights = 1/sighat)
+summary(testmod5)
+plot(testmod5)
+```
+
+```{r}
+# WLS again (2nd time)
+res5 = testmod5$residuals
+z2=log(res5^2)
+
+z.lo2=loess(z2~nccs,degree = 2,span=.75)
+loz2=predict(z.lo2)
+yord=order(nccs)
+
+plot(nccs,z2)
+lines(nccs[yord],loz2[yord],col=2)
+
+sig2hat2=exp(loz2)
+sighat2=sqrt(sig2hat2)
+
+testmod6 = lm(nccs~log(cmt)+bfs+flya+log(wtr)+spl+log(ca)+log(fa)+log(age),data = data2,weights = 1/sighat2)
+summary(testmod6)
+plot(testmod6)
+```
+
+```{r}
+#WLS again (3rd time)
+res6 = testmod6$residuals
+z3=log(res6^2)
+
+z.lo3=loess(z3~nccs,degree = 2,span=.75)
+loz3=predict(z.lo3)
+yord=order(nccs)
+
+plot(nccs,z3)
+lines(nccs[yord],loz3[yord],col=2)
+
+sig2hat3=exp(loz3)
+sighat3=sqrt(sig2hat3)
+
+testmod7 = lm(nccs~log(cmt)+bfs+flya+log(wtr)+spl+log(ca)+log(fa)+log(age),data = data2,weights = 1/sighat3)
+summary(testmod7)
+plot(testmod7)
+
+plot(testmod7$fitted.values,weighted.residuals(testmod7))
+lines(lowess(testmod7$fitted.values,weighted.residuals(testmod7)),col=4)
+```
+
+
+the non constant variance problem was addressed by the weighted least square approach and the constant variance assumption was satisfied. After all the above transformations, the valid model summary with all the assumptions satisfied, was obtained as follows.
+
+```{r}
+summary(testmod7)
+```
+
+The final model has a residual standard error of 2.007 and adjusted R^2 value of 0.8027.
+
+Cmt has a positive relationship and Wtr has a negative relationship with response variable ccs, as expected by the scatterplot matrix. All the other predictor variables have positive relationship with ccs with an intercept value of -69.387377. If we compare with the model before transformations, the latest model residual standard error value has significantly decreased from 10.7 to 2.007 and the adj. R2 value has significantly increased from 0.6125 to 0.8027. In this model, all the predictor variables were identified as significant at 0.05 alpha level.
+
+##### Model Selection
+
+The goal of variable selection is to identify the most suitable set of predictor variables that describes the response variable well, out of all the candidate predictor variable combinations. In this study, forward selection, backward selection and stepwise regression methods were used for the variable selection procedure.
+
+```{r}
+# model selection
+low = lm(nccs~1,data = dataset,weights = 1/sig2hat3)
+high = lm(nccs~log(cmt)+bfs+flya+log(wtr)+spl+log(ca)+log(fa)+log(age),data = dataset,weights = 1/sighat3)
+
+k = ols_step_forward_p(high);k;k$model # forward selection
+summary(k$model)
+b=ols_step_backward_p(high);b;b$model # backward selection
+summary(b$model)
+s= ols_step_both_p(high);s;s$model # stepwise
+bs=ols_step_best_subset(high);bs # best subset selection
+summary(s$model)
+```
+
+The full model contained all the 8 predictor variables with transformations added as needed, in order to satisfy the assumptions. Squared terms and interaction terms were not added to the full model as, such relationships were not visible in the scatterplot matrix. Both forward selection and backward selection methods delivered the same model with same coefficient values.
+
+When compare the model delivered by forward and backward selection, with the full model, there were no major changes except for some small coefficient changes. And the adjusted R2 value was increased from 0.8027 to 0.8266, which could be identified as a development from the full model. Stepwise regression method delivered a model with one change of predictor variables, when compared with forward/backward model. Predictor variable spl has been dropped out from the predictor variable list, under the stepwise regression procedure.
+
+```{r}
+# comparing  AIC and Mallows Cp Values of the two models
+AIC(k$model)
+AIC(s$model)
+
+k$mallows_cp
+s$mallows_cp
+```
+
+Forwward model
+1. AIC = 4511.6
+2. Mallows Cp = 161.04
+
+Stepwise Model
+1. AIC = 4510.7
+2. Mallows Cp = 160.29
+
+R^2 value was same for both the model even though the Stepwise Model has dropped the predictor variable ”spl” from Forwward model. AIC values and the Mallows Cp values show similar patterns as both those values were decreased when comes from Forwward model to Stepwise Model, but the changes were very small compared with the values. As it turns out that the same adjusted R^2 value can be achieved by the Stepwise Model with one less predictor variable, smaller AIC and Mallows Cp values, when compared with Forwward model, Stepwise Model has to be selected as the best model among those two models.
+
+##### Model Validation
+
+Cross validation is a statistical method used to estimate the validity or accuracy of a given model. 10-fold cross validation technique was used to validate the selected model as it was one of the commonly used validation method in statistics and regression.
+
+```{r}
+# Model Validation
+train.control=trainControl(method="cv",number=10)
+
+modval1 <- train(nccs~log(cmt)+bfs+flya+log(wtr)+log(ca)+log(fa)+log(age),data = dataset,weights = 1/sighat3 , method = "lm",
+                trControl = train.control)
+print(modval1)
+modval1$results
+summary(modval1$finalModel)
+```
+
+Model Validation Measures:
+
+1. RMSE(Root Mean Squared Error) = 2.18361	
+2. MAE(Mean Absolute Error) = 1.6939	
+
+MAE represents the mean of the absolute difference between the actual values and the predicted values and RMSE represents the mean of the squared difference between the actual value and the predicted value. Both the measures show very small values from 10-fold validation results, which would be beneficial for a prediction model.
+
+##### Summary
+
+
+The study was carried out to identify the factors that are influential for the response variable CCS(Concrete compressive strength). As seen from the summary statistics of initial model, the reported adjusted R^2 value was 0.6125 and the reported residual standard error value was 10.4. 
+
+After that, the box cox transformation for response variable and log transformation for some predictor variables were carried out, and the model was improved in terms of measures like residual standard error and adj. R^2 value, and in terms of satisfaction of model assumptions. In fact, the reported adj. R2 value was increased from 0.6125 to 0.8027 and residual standard error was decreased from 10.4 to 2.007 which were improvements to the model in terms of model accuracy.
+
+Then the variable selection and model selection procedures were carried out and the final model of the study was obtained. As per the results from final model, the adjusted R^2 value was increased up-to 0.8266 and with a RMSE value of 2.187 and a MAE value of 1.693 which were obtained in model validation process.
+
+The goal of the study was to build a multiple linear regression model that can make valuable inferences as well as better prediction of CCS, and as it seems by the results, the goal of the study was achieved with some interesting inferences of predictor variables towards CCS. And very low values of RMSE and MAE ensures the prediction ability of the model.
