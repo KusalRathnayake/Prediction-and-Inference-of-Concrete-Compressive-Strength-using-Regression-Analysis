@@ -15,3 +15,20 @@ Concrete is a composite material composed of fine and coarse aggregate, bonded t
 3. Use weighted least square method for model improvement
 4. Use variable selection methods such as forward and backward selection
 5. Use k-fold cross validation for model validation
+
+#### Dataset
+
+This dataset consists of 1030 observations with 8 quantitative predictor variables and one quantitative response variable. In this dataset, the actual concrete compressive strength for a given mixture under a specific age was determined and recorded. This data set was obtained from UCI machine learning repository. The aim of the project would be “to predict and make inference on concrete compressive strength using the 8 predictor variables. All the variables are described below.
+
+Predictor Variables: (Amount of kg in a m^3 mixture)
+
+1. Cement (cmt) 
+2. Blast Furnace Slag (bfs) 
+3. Fly Ash (flya) 
+4. Water (wtr) 
+5. Superplasticizer (spl)
+6. Coarse Aggregate (ca)
+7. Fine Aggregate (fa)
+8. Age - Age of the mixture (number of days)
+
+Dependent Variable: Concrete Compressive Strength(CCS) - measured in MPa (megapascal)
